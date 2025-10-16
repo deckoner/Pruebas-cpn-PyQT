@@ -1,58 +1,67 @@
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-    QLabel, QStackedWidget, QPushButton
+    QLabel, QStackedWidget, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import Qt
 from gui.theme import THEME
 from gui.components.sidebar_button import SidebarButton
-import platform
 
 
 class MainWindow(QMainWindow):
     """
-    Ventana principal con menú lateral moderno y soporte de tema dinámico.
-
-    La ventana contiene un menú lateral con botones interactivos que
-    cambian la página visible en el contenedor principal. Permite alternar
-    entre tema claro y oscuro mediante un botón con icono de sol/luna.
+    Ventana principal con menú horizontal responsivo y soporte de tema dinámico.
     """
 
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Aplicación PyQt - Menú moderno")
+        self.setWindowTitle("Aplicación PyQt - Menú horizontal responsivo")
         self.setGeometry(100, 100, 900, 600)
 
         # --- Layout principal ---
         main_widget = QWidget()
-        main_layout = QHBoxLayout()
+        main_layout = QVBoxLayout()  # Menú arriba, contenido abajo
         main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
         main_widget.setLayout(main_layout)
         self.setCentralWidget(main_widget)
 
-        # --- Menú lateral ---
-        self.sidebar = QWidget()
-        self.sidebar_layout = QVBoxLayout()
-        self.sidebar_layout.setContentsMargins(0, 0, 0, 0)
-        self.sidebar_layout.setSpacing(0)
-        self.sidebar.setLayout(self.sidebar_layout)
-        self.sidebar.setFixedWidth(200)
-        main_layout.addWidget(self.sidebar)
+        # --- Menú superior (horizontal) ---
+        self.menu_bar = QWidget()
+        self.menu_layout = QHBoxLayout()
+        self.menu_layout.setContentsMargins(0, 0, 0, 0)
+        self.menu_layout.setSpacing(0)
+        self.menu_bar.setLayout(self.menu_layout)
+        self.menu_bar.setFixedHeight(50)
+        self.menu_bar.setStyleSheet(f"background-color: {THEME['sidebar_bg']};")
+        main_layout.addWidget(self.menu_bar)
 
         # --- Botones del menú ---
         self.btn_inicio = SidebarButton("Inicio")
+        self.btn_product = SidebarButton("Productos")
+        self.btn_gestion_product = SidebarButton("Gestión de productos")
         self.btn_config = SidebarButton("Configuración")
         self.btn_about = SidebarButton("Acerca de")
 
-        # Agregar botones al layout lateral
-        for btn in [self.btn_inicio, self.btn_config, self.btn_about]:
-            self.sidebar_layout.addWidget(btn)
-            if isinstance(btn, SidebarButton):
-                btn.clicked.connect(self.handle_button_click)
+        # Lista de botones
+        self.buttons = [
+            self.btn_inicio,
+            self.btn_product,
+            self.btn_gestion_product,
+            self.btn_config,
+            self.btn_about
+        ]
 
+        # --- Añadir botones al layout con tamaño equitativo ---
+        for i, btn in enumerate(self.buttons):
+            btn.clicked.connect(self.handle_button_click)
+            btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            self.menu_layout.addWidget(btn)
+            # Asignar igual peso a todos los botones (distribución equitativa)
+            self.menu_layout.setStretch(i, 1)
+
+        # --- Estado inicial ---
         self.btn_inicio.setChecked(True)
-        self.sidebar_layout.addStretch()
 
         # --- Contenedor de páginas ---
         self.stack = QStackedWidget()
@@ -60,22 +69,34 @@ class MainWindow(QMainWindow):
 
         # --- Páginas ---
         self.page_inicio = self.create_page("Bienvenido a la página de inicio")
-        self.page_config = self.create_page("Aquí van las configuraciones")
-        self.page_about = self.create_page("Acerca de esta aplicación")
-        for page in [self.page_inicio, self.page_config, self.page_about]:
+        self.page_product = self.create_page("Aquí va la tabla de productos")
+        self.page_gestion_product = self.create_page("Aquí podrás crear productos nuevos y gestionar los demás")
+        self.page_config = self.create_page("Configuraciones")
+        self.page_about = self.create_page("Acerca de nosotros")
+
+        # --- Agregar páginas al stack ---
+        self.pages = [
+            self.page_inicio,
+            self.page_product,
+            self.page_gestion_product,
+            self.page_config,
+            self.page_about
+        ]
+
+        for page in self.pages:
             self.stack.addWidget(page)
 
     def handle_button_click(self):
-        """Maneja el click de los botones del menú lateral."""
+        """Maneja el click de los botones del menú."""
         sender = self.sender()
-        for btn in [self.btn_inicio, self.btn_config, self.btn_about]:
+        for btn in self.buttons:
             btn.setChecked(False)
         sender.setChecked(True)
-        index = [self.btn_inicio, self.btn_config, self.btn_about].index(sender)
+        index = self.buttons.index(sender)
         self.stack.setCurrentIndex(index)
 
     def create_page(self, text: str) -> QWidget:
-        """Crea una página simple con QLabel centrado usando color de tema."""
+        """Crea una página simple con QLabel centrado."""
         page = QWidget()
         layout = QVBoxLayout()
         label = QLabel(text)
@@ -90,12 +111,12 @@ class MainWindow(QMainWindow):
         global THEME
         THEME.update(theme)
 
-        # Actualizar sidebar
-        if hasattr(self, "sidebar"):
-            self.sidebar.setStyleSheet(f"background-color: {THEME['sidebar_bg']};")
+        # Actualizar barra de menú
+        if hasattr(self, "menu_bar"):
+            self.menu_bar.setStyleSheet(f"background-color: {THEME['sidebar_bg']};")
 
         # Actualizar botones
-        for btn in [self.btn_inicio, self.btn_config, self.btn_about]:
+        for btn in self.buttons:
             btn.setStyleSheet(btn.default_style())
 
         # Actualizar páginas
